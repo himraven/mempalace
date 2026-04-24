@@ -995,10 +995,11 @@ def tool_diary_read(agent_name: str, last_n: int = 10, wing: str = ""):
     Read an agent's recent diary entries. Returns the last N entries
     in chronological order — the agent's personal journal.
 
-    When ``wing`` is provided, reads from that wing instead of the
-    agent's default ``wing_<agent_name>`` wing.  This lets hooks
-    direct diary reads to a project-specific wing derived from
-    the transcript path.
+    When ``wing`` is provided, reads only from that wing. When ``wing``
+    is empty or omitted, returns entries from every wing this agent has
+    written to. Diary writes from hooks land in project-derived wings
+    (``wing_<project>``), so requiring a specific wing on read would
+    silo those entries from agent-initiated reads.
     """
     try:
         agent_name = sanitize_name(agent_name, "agent_name")
@@ -1007,21 +1008,20 @@ def tool_diary_read(agent_name: str, last_n: int = 10, wing: str = ""):
     except ValueError as e:
         return {"error": str(e)}
     last_n = max(1, min(last_n, 100))
-    if not wing:
-        wing = f"wing_{agent_name.lower().replace(' ', '_')}"
     col = _get_collection()
     if not col:
         return _no_palace()
 
+    # Build filter: always scope by agent + room=diary. Wing is optional —
+    # when empty, return entries across all wings for this agent (matches
+    # the #1097 empty-string-as-no-filter convention for LLM ergonomics).
+    conditions = [{"room": "diary"}, {"agent": agent_name}]
+    if wing:
+        conditions.insert(0, {"wing": wing})
+
     try:
         results = col.get(
-            where={
-                "$and": [
-                    {"wing": wing},
-                    {"room": "diary"},
-                    {"agent": agent_name},
-                ]
-            },
+            where={"$and": conditions},
             include=["documents", "metadatas"],
             limit=10000,
         )
