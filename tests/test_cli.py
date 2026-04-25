@@ -281,6 +281,29 @@ def test_maybe_run_mine_yes_and_auto_mine_fully_noninteractive(tmp_path):
         mock_mine.assert_called_once()
 
 
+def test_maybe_run_mine_decline_quotes_path_with_spaces(tmp_path, capsys):
+    """The resume hint must shell-quote the project dir so paths with
+    spaces / metacharacters produce a copy-paste-safe command."""
+    from mempalace.cli import _maybe_run_mine_after_init
+
+    spaced_dir = tmp_path / "my project dir"
+    spaced_dir.mkdir()
+    args = argparse.Namespace(dir=str(spaced_dir), yes=False, auto_mine=False)
+    cfg = _fake_cfg(tmp_path)
+    with (
+        patch("mempalace.miner.mine"),
+        patch("mempalace.miner.scan_project", return_value=[]),
+        patch("builtins.input", return_value="n"),
+    ):
+        _maybe_run_mine_after_init(args, cfg)
+    out = capsys.readouterr().out
+    # shlex.quote wraps paths with spaces in single quotes.
+    assert f"mempalace mine '{spaced_dir}'" in out
+    # And the bare unquoted form is NOT printed (would break paste).
+    assert f"mempalace mine {spaced_dir} " not in out
+    assert f"mempalace mine {spaced_dir}`" not in out
+
+
 def test_maybe_run_mine_eof_on_stdin_treated_as_decline(tmp_path, capsys):
     """Piped / non-interactive stdin (EOFError) declines without crashing."""
     from mempalace.cli import _maybe_run_mine_after_init

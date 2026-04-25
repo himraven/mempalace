@@ -238,7 +238,7 @@ def _maybe_run_mine_after_init(args, cfg) -> None:
             # we don't block. User can re-run with --auto-mine to opt in.
             answer = "n"
         if answer not in ("", "y", "yes"):
-            print(f"\n  Skipped. Run `mempalace mine {project_dir}` when ready.")
+            print(f"\n  Skipped. Run `mempalace mine {shlex.quote(project_dir)}` when ready.")
             return
 
     palace_path = cfg.palace_path

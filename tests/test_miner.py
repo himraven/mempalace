@@ -653,6 +653,30 @@ def test_mine_keyboard_interrupt_prints_summary_and_exits_130(tmp_path, capsys):
     assert "upserted idempotently" in out
 
 
+def test_mine_keyboard_interrupt_quotes_path_with_spaces_in_resume_hint(tmp_path, capsys):
+    """Resume hint must shell-quote the project dir so a path containing
+    spaces / metacharacters yields a copy-paste-safe `mempalace mine ...`
+    command. Otherwise users on a path like "My Project" hit a broken
+    invocation when they re-run after Ctrl-C."""
+    import pytest
+    from unittest.mock import patch
+
+    project_root = tmp_path / "my project"
+    project_root.mkdir()
+    _make_minable_project(project_root, n_files=2)
+    palace_path = project_root / "palace"
+
+    def fake_process_file(*args, **kwargs):
+        raise KeyboardInterrupt
+
+    with patch("mempalace.miner.process_file", side_effect=fake_process_file):
+        with pytest.raises(SystemExit):
+            mine(str(project_root), str(palace_path))
+
+    out = capsys.readouterr().out
+    assert f"mempalace mine '{project_root}'" in out
+
+
 def test_mine_cleans_up_pid_file_on_interrupt(tmp_path):
     """Our own PID entry in mine.pid is removed in the finally clause."""
     import pytest

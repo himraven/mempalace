@@ -9,6 +9,7 @@ Stores verbatim chunks as drawers. No summaries. Ever.
 
 import os
 import sys
+import shlex
 import hashlib
 import fnmatch
 from pathlib import Path
@@ -1103,7 +1104,7 @@ def mine(
         print(f"    drawers_filed:   {total_drawers}")
         print(f"    last_file:       {last_file or '<none>'}")
         print(
-            f"\n  Re-run `mempalace mine {project_dir}` to resume — "
+            f"\n  Re-run `mempalace mine {shlex.quote(project_dir)}` to resume — "
             "already-filed drawers are\n  upserted idempotently and will not duplicate.\n"
         )
         sys.exit(130)
