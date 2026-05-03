@@ -169,9 +169,11 @@ class MCPServerProxy:
         """Forward stdin to subprocess stdin."""
         try:
             while True:
-                # Read from our stdin
+                # Read from our stdin (read1 returns as soon as ANY data is
+                # available; plain read() blocks until full 4096 bytes or EOF,
+                # which deadlocks on MCP messages smaller than 4096 bytes).
                 data = await asyncio.get_event_loop().run_in_executor(
-                    None, sys.stdin.buffer.read, 4096
+                    None, sys.stdin.buffer.read1, 4096
                 )
                 if not data:
                     break
