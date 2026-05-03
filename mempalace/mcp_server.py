@@ -81,6 +81,33 @@ from .palace_graph import (  # noqa: E402
 
 from .knowledge_graph import KnowledgeGraph  # noqa: E402
 
+# --- nova-cc fork patch: P1 #1 Plan B — default-on skip-pin --------------
+# `_pin_hnsw_threads` (chroma.py:562) is suspected of triggering ~60% SEGV
+# on chromadb 1.5.x cold-start in the HNSW C extension. The nova-cc daemon
+# worker rebinds it at module load (daemon/memory/chromadb_worker.py); the
+# MCP bridge enters this module directly and was crashing on the first
+# real tool call from CC/Codex callers.
+#
+# Default the rebind to ON. Set MEMPALACE_SKIP_PIN=0 to restore upstream
+# binding for diagnostic comparison.
+#
+# Both bindings need rebinding:
+#   - mempalace.backends.chroma._pin_hnsw_threads — used internally by
+#     ChromaBackend during collection get/create (chroma.py:1111)
+#   - mempalace.mcp_server._pin_hnsw_threads (local copy from `from .backends.chroma
+#     import _pin_hnsw_threads` on line 67) — used at lines 306, 312
+if os.environ.get("MEMPALACE_SKIP_PIN", "1") != "0":
+    from .backends import chroma as _chroma_mod  # noqa: E402
+
+    _chroma_mod._pin_hnsw_threads = lambda _collection: None  # type: ignore[assignment]
+    _pin_hnsw_threads = lambda _collection: None  # type: ignore[assignment] # noqa: E731
+    print(
+        "[skip-pin] _pin_hnsw_threads disabled at MCP server entry (nova-cc fork)",
+        file=sys.stderr,
+        flush=True,
+    )
+# --- end nova-cc fork patch -----------------------------------------------
+
 logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stderr)
 logger = logging.getLogger("mempalace_mcp")
 
